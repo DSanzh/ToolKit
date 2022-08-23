@@ -59,3 +59,59 @@ extension UIApplication {
         _share(data, applicationActivities: applicationActivities, setupViewControllerCompletion: setupViewControllerCompletion)
     }
 }
+
+
+#if canImport(LinkPresentation)
+    import LinkPresentation
+#endif
+
+
+class OptionalTextActivityItemSource: NSObject, UIActivityItemSource {
+    let text: String
+    weak var viewController: UIViewController?
+    
+    init(text: String) {
+        self.text = text
+    }
+    
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        return text
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, itemForActivityType activityType: UIActivity.ActivityType?) -> Any? {
+        if activityType?.rawValue == "net.whatsapp.WhatsApp.ShareExtension" {
+            return nil
+        } else {
+            return text
+        }
+    }
+}
+
+/// For whatever reason `UIActivityViewController` on iOS 13 only provides a preview of the image if it's passed as a URL, rather than a `UIImage` (if `UIImage` just shows app icon, see here: https://stackoverflow.com/questions/57850483/).
+/// However we can't pass the URL to the image because when paired with a String on iOS 13 (image URLs are fine on their own) Messages won't accept it.
+/// So when sharing both, wrap the UIImage object and manually provide the preview via the `LinkPresentation` framework.
+class ImageActivityItemSource: NSObject, UIActivityItemSource {
+    let image: UIImage
+    
+    init(image: UIImage) {
+        self.image = image
+    }
+    
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        return image
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, itemForActivityType activityType: UIActivity.ActivityType?) -> Any? {
+        return image
+    }
+    
+    @available(iOS 13.0, *)
+    func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController) -> LPLinkMetadata? {
+        let imageProvider = NSItemProvider(object: image)
+        
+        let metadata = LPLinkMetadata()
+        metadata.imageProvider = imageProvider
+        metadata.title = "QR"
+        return metadata
+    }
+}
